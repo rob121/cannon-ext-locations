@@ -25,7 +25,7 @@ const (
 	extensionName        = "cannon-ext-locations"
 	extensionTitle       = "Locations"
 	extensionDescription = "Manage named map locations with addresses and rich content, rendered with Leaflet on all-locations and single-location pages."
-	extensionVersion     = "0.1.0"
+	extensionVersion     = "0.2.0"
 	updateURLBase        = "https://github.com/rob121/cannon-ext-locations/releases/download"
 	defaultAdminMenu     = "Locations"
 	pageSize             = 50
