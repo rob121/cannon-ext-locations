@@ -1,0 +1,188 @@
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<style>
+  .locations-page.locations-detail {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  .locations-detail-header {
+    margin: 0 0 1.25rem;
+  }
+  .locations-detail-header .locations-back {
+    display: inline-block;
+    margin: 0 0 .65rem;
+    font-size: .9rem;
+  }
+  .locations-detail-header h1 {
+    margin: 0 0 .4rem;
+    line-height: 1.15;
+  }
+  .locations-detail-address {
+    margin: 0;
+    color: inherit;
+    opacity: .72;
+    font-size: 1rem;
+    line-height: 1.45;
+  }
+  .locations-detail-intro {
+    margin: .85rem 0 0;
+    max-width: 40rem;
+  }
+  .locations-detail-layout {
+    margin: 0;
+  }
+  .locations-page .locations-map {
+    width: 100%;
+    height: 360px;
+    margin: 0;
+    border-radius: .5rem;
+    border: 1px solid rgba(0, 0, 0, .08);
+    background: #eef2f5;
+    overflow: hidden;
+    position: relative;
+    z-index: 0;
+  }
+  .locations-page .leaflet-container {
+    width: 100%;
+    height: 100%;
+    font: inherit;
+  }
+  /* Theme img { max-width:100%; height:auto } breaks Leaflet tile sizing. */
+  .locations-page .leaflet-container img,
+  .locations-page .leaflet-pane img,
+  .locations-page .leaflet-marker-icon,
+  .locations-page .leaflet-marker-shadow,
+  .locations-page .leaflet-tile {
+    max-width: none !important;
+    max-height: none !important;
+  }
+  .locations-detail-panel {
+    height: 100%;
+  }
+  .locations-detail-panel-label {
+    margin: 0 0 .65rem;
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    opacity: .65;
+  }
+  .locations-detail-meta {
+    margin: 0 0 1rem;
+  }
+  .locations-detail-meta .locations-detail-address {
+    margin: 0 0 .75rem;
+  }
+  .locations-detail-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem .75rem;
+    margin: 0 0 1.15rem;
+  }
+  .locations-detail-actions a {
+    font-weight: 650;
+    text-decoration: none;
+  }
+  .locations-detail-actions a:hover,
+  .locations-detail-actions a:focus-visible {
+    text-decoration: underline;
+  }
+  .locations-detail-body {
+    margin: 0;
+  }
+  .locations-detail-body > :first-child {
+    margin-top: 0;
+  }
+  .locations-detail-body > :last-child {
+    margin-bottom: 0;
+  }
+  @media (min-width: 992px) {
+    .locations-page .locations-map {
+      height: 460px;
+    }
+    .locations-detail-panel {
+      position: sticky;
+      top: 1.25rem;
+    }
+  }
+</style>
+
+<section class="locations-page locations-detail" data-locations-page="{{.PageItem}}" aria-labelledby="locations-detail-title">
+  <header class="locations-detail-header">
+    {{if .IndexURL}}<a class="locations-back" href="{{.IndexURL}}">← All locations</a>{{end}}
+    <h1 id="locations-detail-title">{{.Location.Name}}</h1>
+    {{if .Location.Address}}<p class="locations-detail-address">{{.Location.Address}}</p>{{end}}
+    {{if .Introduction}}<p class="locations-detail-intro lead mb-0">{{.Introduction}}</p>{{end}}
+  </header>
+
+  <div class="locations-detail-layout row g-4 align-items-start">
+    <div class="locations-detail-map col-12 {{if .Location.ContentHTML}}col-lg-8 col-xl-9{{end}}">
+      <div id="locations-map-detail" class="locations-map" role="region" aria-label="Map for {{.Location.Name}}"></div>
+    </div>
+    {{if .Location.ContentHTML}}
+    <aside class="locations-detail-info col-12 col-lg-4 col-xl-3">
+      <div class="locations-detail-panel">
+        <p class="locations-detail-panel-label">Camp info</p>
+        {{if and .Location.HasCoords .Location.Address}}
+        <div class="locations-detail-actions">
+          <a href="https://www.google.com/maps/dir/?api=1&amp;destination={{urlquery .Location.Address}}" target="_blank" rel="noopener noreferrer">Get directions</a>
+        </div>
+        {{end}}
+        <div class="locations-detail-body site-content">{{.Location.ContentHTML}}</div>
+      </div>
+    </aside>
+    {{end}}
+  </div>
+</section>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+(function () {
+  function init() {
+    var points = {{.MapJSON}};
+    var mapEl = document.getElementById('locations-map-detail');
+    if (!mapEl || typeof L === 'undefined') return;
+    if (mapEl.dataset.mapReady === '1') return;
+    mapEl.dataset.mapReady = '1';
+
+    var map = L.map(mapEl, { scrollWheelZoom: false });
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(map);
+
+    if (points && points.length) {
+      var point = points[0];
+      L.marker([point.lat, point.lng]).addTo(map)
+        .bindPopup('<strong>' + escapeHtml(point.name || '') + '</strong><br>' + escapeHtml(point.address || ''));
+      map.setView([point.lat, point.lng], 15);
+    } else {
+      map.setView([28.5, -81.4], 7);
+    }
+
+    function refreshSize() { map.invalidateSize(false); }
+    map.whenReady(refreshSize);
+    setTimeout(refreshSize, 0);
+    setTimeout(refreshSize, 250);
+    window.addEventListener('load', refreshSize, { once: true });
+    window.addEventListener('resize', refreshSize);
+    if (typeof ResizeObserver !== 'undefined') {
+      new ResizeObserver(refreshSize).observe(mapEl);
+    }
+  }
+
+  function escapeHtml(value) {
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>

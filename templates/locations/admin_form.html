@@ -1,0 +1,131 @@
+<div class="admin-form-card">
+  <div class="admin-form-card-header">
+    <div class="admin-form-card-heading">
+      <h2 class="admin-form-card-title">{{.Title}}</h2>
+      <p class="admin-form-card-desc">{{.Subtitle}}</p>
+    </div>
+  </div>
+  <div class="admin-form-card-body">
+    {{if .Error}}<div class="admin-alert admin-alert-error">{{.Error}}</div>{{end}}
+    <form method="post" action="{{.ActionURL}}" class="admin-item-form" id="locations-form">
+      {{.CSRFField}}
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="admin-form-label" for="locations-name">Name</label>
+          <input class="admin-form-control" id="locations-name" name="name" value="{{.Row.Name}}" required>
+        </div>
+        <div class="col-md-6">
+          <label class="admin-form-label" for="locations-slug">Slug</label>
+          <input class="admin-form-control" id="locations-slug" name="slug" value="{{.Row.Slug}}">
+          <p class="admin-form-help">Leave blank to generate from the name.</p>
+        </div>
+        <div class="col-md-12">
+          <label class="admin-form-label" for="locations-address">Address</label>
+          <input class="admin-form-control" id="locations-address" name="address" value="{{.Row.Address}}" required>
+          <p class="admin-form-help">Used for display. When latitude/longitude are empty, the extension tries OpenStreetMap geocoding; a failed lookup still saves the location.</p>
+        </div>
+        <div class="col-md-4">
+          <label class="admin-form-label" for="locations-lat">Latitude</label>
+          <input class="admin-form-control" id="locations-lat" name="latitude" value="{{if or .Row.Latitude .Row.Longitude}}{{printf "%g" .Row.Latitude}}{{end}}" inputmode="decimal">
+        </div>
+        <div class="col-md-4">
+          <label class="admin-form-label" for="locations-lng">Longitude</label>
+          <input class="admin-form-control" id="locations-lng" name="longitude" value="{{if or .Row.Latitude .Row.Longitude}}{{printf "%g" .Row.Longitude}}{{end}}" inputmode="decimal">
+        </div>
+        <div class="col-md-2">
+          <label class="admin-form-label" for="locations-sort">Sort</label>
+          <input class="admin-form-control" id="locations-sort" type="number" name="sort_order" value="{{.Row.SortOrder}}">
+        </div>
+        <div class="col-md-2">
+          <label class="admin-form-label" for="locations-status">Status</label>
+          <select class="admin-form-control" id="locations-status" name="status">
+            <option value="active" {{if eq .Row.Status "active"}}selected{{end}}>Active</option>
+            <option value="inactive" {{if eq .Row.Status "inactive"}}selected{{end}}>Inactive</option>
+          </select>
+        </div>
+        <div class="col-md-12">
+          <label class="admin-form-label" for="locations-content">Content</label>
+          <div class="admin-richtext-field admin-richtext-body">
+            <textarea class="admin-form-control" id="locations-content" name="content" rows="12" data-locations-ckeditor="body">{{.Row.Content}}</textarea>
+          </div>
+          <p class="admin-form-help">Shown on the location detail page below the map.</p>
+        </div>
+      </div>
+      <div class="admin-form-actions">
+        <button type="submit" class="btn-admin-primary">Save</button>
+        <a class="btn-admin-outline" href="{{.CancelURL}}" data-turbo-frame="_top">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function () {
+  var CKEDITOR5_URL = 'https://cdn.jsdelivr.net/npm/@ckeditor/ckeditor5-build-classic@41.4.2/build/ckeditor.js';
+  var editors = [];
+
+  function constructorFromWindow() {
+    if (window.ClassicEditor) return window.ClassicEditor;
+    if (window.CKEDITOR && window.CKEDITOR.ClassicEditor) return window.CKEDITOR.ClassicEditor;
+    return null;
+  }
+
+  function loadCKEditor() {
+    var ctor = constructorFromWindow();
+    if (ctor) return Promise.resolve(ctor);
+    if (window.__locationsCKEditorLoadPromise) return window.__locationsCKEditorLoadPromise;
+    window.__locationsCKEditorLoadPromise = new Promise(function (resolve, reject) {
+      var script = document.createElement('script');
+      script.src = CKEDITOR5_URL;
+      script.async = true;
+      script.onload = function () {
+        var loaded = constructorFromWindow();
+        loaded ? resolve(loaded) : reject(new Error('CKEditor failed to load'));
+      };
+      script.onerror = function () { reject(new Error('CKEditor failed to load')); };
+      document.head.appendChild(script);
+    });
+    return window.__locationsCKEditorLoadPromise;
+  }
+
+  function config() {
+    return {
+      toolbar: ['heading', '|', 'bold', 'italic', 'link', '|', 'bulletedList', 'numberedList', 'blockQuote', '|', 'undo', 'redo']
+    };
+  }
+
+  function syncEditors() {
+    editors.forEach(function (editor) {
+      if (editor && typeof editor.updateSourceElement === 'function') editor.updateSourceElement();
+    });
+  }
+
+  function initEditors() {
+    var form = document.getElementById('locations-form');
+    if (!form || form.dataset.locationsEditorsReady === '1') return;
+    var fields = Array.prototype.slice.call(form.querySelectorAll('[data-locations-ckeditor]'));
+    if (!fields.length) return;
+    form.dataset.locationsEditorsReady = '1';
+    form.addEventListener('submit', syncEditors);
+    loadCKEditor().then(function (ClassicEditor) {
+      return Promise.all(fields.map(function (field) {
+        return ClassicEditor.create(field, config()).then(function (editor) {
+          editors.push(editor);
+          return editor;
+        });
+      }));
+    }).catch(function (err) {
+      console.error('Locations CKEditor failed to initialize:', err);
+      delete form.dataset.locationsEditorsReady;
+    });
+  }
+
+  document.addEventListener('turbo:submit-start', function (event) {
+    if (event.target && event.target.id === 'locations-form') syncEditors();
+  });
+  document.addEventListener('DOMContentLoaded', initEditors);
+  document.addEventListener('turbo:load', initEditors);
+  document.addEventListener('turbo:frame-load', initEditors);
+  initEditors();
+})();
+</script>

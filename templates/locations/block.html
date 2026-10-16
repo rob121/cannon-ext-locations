@@ -1,0 +1,80 @@
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<style>
+  .locations-block .locations-map {
+    width: 100%;
+    border-radius: .5rem;
+    border: 1px solid rgba(0,0,0,.08);
+    background: #eef2f5;
+    overflow: hidden;
+    position: relative;
+    z-index: 0;
+  }
+  .locations-block .leaflet-container {
+    width: 100%;
+    height: 100%;
+    font: inherit;
+  }
+  /* Theme img { max-width:100%; height:auto } breaks Leaflet tile sizing. */
+  .locations-block .leaflet-container img,
+  .locations-block .leaflet-pane img,
+  .locations-block .leaflet-marker-icon,
+  .locations-block .leaflet-marker-shadow,
+  .locations-block .leaflet-tile {
+    max-width: none !important;
+    max-height: none !important;
+  }
+</style>
+
+<section class="locations-block locations-page" data-locations-block="{{.BlockItem}}" data-locations-space="{{.Space}}">
+  <div id="locations-map-block-{{.BlockItem}}" class="locations-map locations-map-block" style="height: {{.Height}}px;" role="region" aria-label="Locations map"></div>
+</section>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+(function () {
+  function init() {
+    var points = {{.MapJSON}};
+    var mapEl = document.getElementById('locations-map-block-{{.BlockItem}}');
+    if (!mapEl || typeof L === 'undefined') return;
+    if (mapEl.dataset.mapReady === '1') return;
+    mapEl.dataset.mapReady = '1';
+
+    var map = L.map(mapEl, { scrollWheelZoom: false });
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(map);
+
+    var bounds = [];
+    (points || []).forEach(function (point) {
+      if (typeof point.lat !== 'number' || typeof point.lng !== 'number') return;
+      var marker = L.marker([point.lat, point.lng]).addTo(map);
+      var html = '<strong>' + escapeHtml(point.name || '') + '</strong>';
+      if (point.address) html += '<br>' + escapeHtml(point.address);
+      if (point.url) html += '<br><a href="' + escapeAttr(point.url) + '">View details</a>';
+      marker.bindPopup(html);
+      bounds.push([point.lat, point.lng]);
+    });
+    if (bounds.length === 1) map.setView(bounds[0], 14);
+    else if (bounds.length > 1) map.fitBounds(bounds, { padding: [20, 20] });
+    else map.setView([28.5, -81.4], 7);
+
+    function refreshSize() { map.invalidateSize(false); }
+    map.whenReady(refreshSize);
+    setTimeout(refreshSize, 0);
+    setTimeout(refreshSize, 250);
+    window.addEventListener('load', refreshSize, { once: true });
+  }
+
+  function escapeHtml(value) {
+    return String(value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function escapeAttr(value) { return escapeHtml(value).replace(/'/g,'&#39;'); }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>

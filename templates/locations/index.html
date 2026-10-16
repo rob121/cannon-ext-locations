@@ -1,0 +1,106 @@
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<style>
+  .locations-page .locations-map {
+    width: 100%;
+    height: 420px;
+    margin: 0 0 1.5rem;
+    border-radius: .5rem;
+    border: 1px solid rgba(0,0,0,.08);
+    background: #eef2f5;
+    overflow: hidden;
+    position: relative;
+    z-index: 0;
+  }
+  .locations-page .leaflet-container {
+    width: 100%;
+    height: 100%;
+    font: inherit;
+  }
+  /* Theme img { max-width:100%; height:auto } breaks Leaflet tile sizing. */
+  .locations-page .leaflet-container img,
+  .locations-page .leaflet-pane img,
+  .locations-page .leaflet-marker-icon,
+  .locations-page .leaflet-marker-shadow,
+  .locations-page .leaflet-tile {
+    max-width: none !important;
+    max-height: none !important;
+  }
+  .locations-card .stretched-link { font-weight: 650; }
+</style>
+
+<section class="locations-page locations-index py-4 w-100" data-locations-page="{{.PageItem}}">
+  <header class="mb-4">
+    <h1 class="mb-2">{{.Title}}</h1>
+    {{if .Introduction}}<p class="lead text-muted mb-0">{{.Introduction}}</p>{{end}}
+  </header>
+
+  <div id="locations-map-index" class="locations-map" role="region" aria-label="Map of all locations"></div>
+
+  {{if .Locations}}
+  <div class="row g-3 locations-list">
+    {{range .Locations}}
+    <div class="col-md-6 col-lg-4">
+      <article class="card h-100 locations-card">
+        <div class="card-body">
+          <h2 class="h5 card-title"><a href="{{.URL}}">{{.Name}}</a></h2>
+          <p class="card-text text-muted mb-3">{{.Address}}</p>
+          <a class="stretched-link" href="{{.URL}}">View location</a>
+        </div>
+      </article>
+    </div>
+    {{end}}
+  </div>
+  {{else}}
+  <p class="text-muted mb-0">No locations are published yet.</p>
+  {{end}}
+</section>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+(function () {
+  function init() {
+    var points = {{.MapJSON}};
+    var mapEl = document.getElementById('locations-map-index');
+    if (!mapEl || typeof L === 'undefined') return;
+    if (mapEl.dataset.mapReady === '1') return;
+    mapEl.dataset.mapReady = '1';
+
+    var map = L.map(mapEl, { scrollWheelZoom: false });
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(map);
+
+    var bounds = [];
+    (points || []).forEach(function (point) {
+      if (typeof point.lat !== 'number' || typeof point.lng !== 'number') return;
+      var marker = L.marker([point.lat, point.lng]).addTo(map);
+      var html = '<strong>' + escapeHtml(point.name || '') + '</strong>';
+      if (point.address) html += '<br>' + escapeHtml(point.address);
+      if (point.url) html += '<br><a href="' + escapeAttr(point.url) + '">View details</a>';
+      marker.bindPopup(html);
+      bounds.push([point.lat, point.lng]);
+    });
+    if (bounds.length === 1) map.setView(bounds[0], 14);
+    else if (bounds.length > 1) map.fitBounds(bounds, { padding: [28, 28] });
+    else map.setView([28.5, -81.4], 7);
+
+    function refreshSize() { map.invalidateSize(false); }
+    map.whenReady(refreshSize);
+    setTimeout(refreshSize, 0);
+    setTimeout(refreshSize, 250);
+    window.addEventListener('load', refreshSize, { once: true });
+  }
+
+  function escapeHtml(value) {
+    return String(value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function escapeAttr(value) { return escapeHtml(value).replace(/'/g,'&#39;'); }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>

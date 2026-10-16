@@ -1,0 +1,69 @@
+{{if .Notice}}<div class="admin-alert admin-alert-success">{{.Notice}}</div>{{end}}
+
+<section class="admin-extension-page">
+  <div class="admin-page-actions mb-3">
+    <a class="btn-admin-primary" href="{{.PageActionURL}}" data-turbo-frame="_top"><i class="bi bi-geo-alt"></i> {{.PageActionLabel}}</a>
+  </div>
+
+  <div class="admin-data-card">
+    <div class="admin-data-card-header">
+      <div class="admin-data-card-summary-main">
+        <h2 class="admin-data-card-title">{{.Title}}</h2>
+        <p class="admin-data-card-desc">{{.Subtitle}} {{.ActiveTotal}} active of {{.Total}} total.</p>
+      </div>
+    </div>
+    <div class="admin-table-scroll">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Address</th>
+            <th>Coordinates</th>
+            <th>Status</th>
+            <th>Sort</th>
+            <th class="admin-col-actions"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {{range .Rows}}
+          <tr>
+            <td>
+              <span class="admin-cell-primary">{{.Name}}</span>
+              <div class="admin-cell-muted">{{.Slug}}</div>
+            </td>
+            <td class="admin-cell-muted">{{.Address}}</td>
+            <td class="admin-cell-muted">{{printf "%.5f, %.5f" .Latitude .Longitude}}</td>
+            <td>
+              {{if eq .Status "active"}}
+              <span class="admin-badge admin-badge-active"><span class="admin-badge-dot"></span>Active</span>
+              {{else}}
+              <span class="admin-badge admin-badge-inactive"><span class="admin-badge-dot"></span>Inactive</span>
+              {{end}}
+            </td>
+            <td>{{.SortOrder}}</td>
+            <td class="admin-col-actions">
+              <div class="admin-row-actions">
+                <a class="btn-admin-icon" href="{{$.BasePath}}/{{.ID}}" data-turbo-frame="_top" title="Edit"><i class="bi bi-pencil"></i></a>
+                <form method="post" action="{{$.BasePath}}/{{.ID}}/delete" class="admin-inline-form" onsubmit="return confirm('Delete this location?')">
+                  {{$.CSRFField}}
+                  <button type="submit" class="btn-admin-icon btn-admin-icon-danger" title="Delete"><i class="bi bi-trash"></i></button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {{else}}
+          <tr>
+            <td colspan="6" class="admin-table-empty-cell">
+              <div class="admin-empty-state">
+                <div class="admin-empty-state-icon"><i class="bi bi-geo"></i></div>
+                <div class="admin-empty-state-title">No locations yet</div>
+                <p class="admin-empty-state-desc">Add a location with a name and address to show it on the map.</p>
+              </div>
+            </td>
+          </tr>
+          {{end}}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
