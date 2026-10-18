@@ -21,7 +21,7 @@ func (app *locationsApp) admin(req extension.WireRequest) extension.WireResponse
 	if err != nil {
 		return extension.Error(http.StatusInternalServerError, err.Error())
 	}
-	if err := db.Table(app.locationsTable()).AutoMigrate(&location{}); err != nil {
+	if err := app.ensureSchema(db); err != nil {
 		return extension.Error(http.StatusInternalServerError, err.Error())
 	}
 

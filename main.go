@@ -10,9 +10,11 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/rob121/cannon/extension"
+	"gorm.io/gorm"
 )
 
 //go:embed help/*.md
@@ -25,7 +27,7 @@ const (
 	extensionName        = "cannon-ext-locations"
 	extensionTitle       = "Locations"
 	extensionDescription = "Manage named map locations with addresses and rich content, rendered with Leaflet on all-locations and single-location pages."
-	extensionVersion     = "0.2.0"
+	extensionVersion     = "0.2.1"
 	updateURLBase        = "https://github.com/rob121/cannon-ext-locations/releases/download"
 	defaultAdminMenu     = "Locations"
 	pageSize             = 50
@@ -37,6 +39,9 @@ type locationsApp struct {
 	info      extension.Info
 	templates *extension.Templates
 	geocode   geocoder
+
+	schemaOnce sync.Once
+	schemaErr  error
 }
 
 type location struct {
@@ -106,7 +111,14 @@ func (app *locationsApp) install(req extension.WireRequest) error {
 	if err != nil {
 		return err
 	}
-	return db.Table(app.locationsTable()).AutoMigrate(&location{})
+	return app.ensureSchema(db)
+}
+
+func (app *locationsApp) ensureSchema(db *gorm.DB) error {
+	app.schemaOnce.Do(func() {
+		app.schemaErr = db.Table(app.locationsTable()).AutoMigrate(&location{})
+	})
+	return app.schemaErr
 }
 
 func (app *locationsApp) locationsTable() string {
